@@ -39,16 +39,18 @@ RUN wget https://github.com/Reference-LAPACK/lapack/archive/refs/tags/v3.9.1.tar
     make install && ldconfig && \
     cp ../LAPACKE/include/*.h /usr/local/include/
 
+# Copy the local standard-ellipse-detection folder into the container
+COPY . /app/standard-ellipse-detection
+
 # Clone, build, and install standard-ellipse-detection using OpenCV3
-WORKDIR /opt
-RUN git clone https://github.com/memory-overflow/standard-ellipse-detection.git && \
-    cd standard-ellipse-detection && \
+WORKDIR /app
+RUN cd standard-ellipse-detection && \
     mkdir build && cd build && \
     cmake .. -DOpenCV_DIR=/usr/local/lib/cmake/opencv3 && make -j$(nproc) && \
     make install
 
 # Set the working directory for standard-ellipse-detection
-WORKDIR /opt/standard-ellipse-detection/build
+WORKDIR /app/standard-ellipse-detection/build
 
 # Build tests for standard-ellipse-detection
 RUN cmake .. -DBUILD_TESTING=ON -DOpenCV_DIR=/usr/local/lib/cmake/opencv3 && \
