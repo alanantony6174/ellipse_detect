@@ -1,4 +1,3 @@
-
 FROM ubuntu:20.04
 
 # Avoid interactive prompts during package installation
@@ -17,7 +16,17 @@ RUN apt-get update && apt-get install -y \
     libavformat-dev \
     libswscale-dev \
     unzip \
+    python3 \
+    python3-pip \
+    libcanberra-gtk-module \
+    libcanberra-gtk3-module \
     && rm -rf /var/lib/apt/lists/*
+
+# Set Python3 as the default
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Install required Python packages
+RUN pip3 install --no-cache-dir numpy opencv-python
 
 # Build OpenCV 3.4.7 from source
 WORKDIR /opt
