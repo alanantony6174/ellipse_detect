@@ -1,9 +1,8 @@
-FROM ubuntu:20.04
-
-# Avoid interactive prompts during package installation
+# Stage 1: Builder
+FROM ubuntu:20.04 as builder
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies required for building OpenCV, LAPACK, and FastAPI
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
     git \
     build-essential \
@@ -11,11 +10,11 @@ RUN apt-get update && apt-get install -y \
     gfortran \
     wget \
     pkg-config \
+    unzip \
     libgtk2.0-dev \
     libavcodec-dev \
     libavformat-dev \
     libswscale-dev \
-    unzip \
     python3 \
     python3-pip \
     libcanberra-gtk-module \
@@ -25,8 +24,8 @@ RUN apt-get update && apt-get install -y \
 # Set Python3 as the default
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
-# Install required Python packages
-RUN pip3 install --no-cache-dir numpy opencv-python fastapi uvicorn python-multipart
+# Install Python packages needed for building
+RUN pip3 install --no-cache-dir numpy opencv-python
 
 # Build OpenCV 3.4.7 from source
 WORKDIR /opt
@@ -38,7 +37,7 @@ RUN wget -O opencv-3.4.7.zip https://github.com/opencv/opencv/archive/3.4.7.zip 
     make -j$(nproc) && \
     make install && ldconfig
 
-# Download, build, and install LAPACK 3.9.1
+# Build and install LAPACK 3.9.1
 WORKDIR /opt
 RUN wget https://github.com/Reference-LAPACK/lapack/archive/refs/tags/v3.9.1.tar.gz -O lapack-3.9.1.tar.gz && \
     tar -xzvf lapack-3.9.1.tar.gz && \
@@ -48,33 +47,43 @@ RUN wget https://github.com/Reference-LAPACK/lapack/archive/refs/tags/v3.9.1.tar
     make install && ldconfig && \
     cp ../LAPACKE/include/*.h /usr/local/include/
 
-# Set working directory
+# Copy the local standard-ellipse-detection project into /app
 WORKDIR /app
-
-# Copy the local standard-ellipse-detection folder into the container
 COPY . /app/standard-ellipse-detection
 
-# Clone, build, and install standard-ellipse-detection using OpenCV3
-RUN cd standard-ellipse-detection && \
-    mkdir build && cd build && \
-    cmake .. -DOpenCV_DIR=/usr/local/lib/cmake/opencv3 && make -j$(nproc) && \
+# Build standard-ellipse-detection (release build)
+WORKDIR /app/standard-ellipse-detection
+RUN mkdir build && cd build && \
+    cmake .. -DOpenCV_DIR=/usr/local/lib/cmake/opencv3 && \
+    make -j$(nproc) && \
     make install
 
-# Set the working directory for standard-ellipse-detection
+# Build tests for standard-ellipse-detection (creates /build/bin/testdetect)
 WORKDIR /app/standard-ellipse-detection/build
-
-# Build tests for standard-ellipse-detection
 RUN cmake .. -DBUILD_TESTING=ON -DOpenCV_DIR=/usr/local/lib/cmake/opencv3 && \
     make -j$(nproc)
 
-# Set the working directory for standard-ellipse-detection
-WORKDIR /app/standard-ellipse-detection/build
+# Stage 2: Final runtime image
+FROM python:3.8-slim
+WORKDIR /app
 
-# Create a directory for uploads
+# Install missing runtime libraries: libgfortran and GTK runtime
+RUN apt-get update && apt-get install -y \
+    libgfortran5 \
+    libgtk2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install only necessary Python packages for runtime
+RUN pip install --no-cache-dir fastapi uvicorn python-multipart numpy opencv-python
+
+# Copy built libraries and binaries from builder stage
+COPY --from=builder /usr/local /usr/local
+COPY --from=builder /app/standard-ellipse-detection/build /app/standard-ellipse-detection/build
+
+# Create required directories
 RUN mkdir -p /app/uploads /app/results
 
 # Copy FastAPI server script
-WORKDIR /app
 COPY main.py /app/main.py
 
 # Expose FastAPI port
