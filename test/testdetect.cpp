@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <string>
 #include "opencv2/imgcodecs.hpp"
@@ -12,40 +13,48 @@ using namespace zgh;
 
 int main(int argc, char* argv[]) {
     if (argc <= 1) {
-        std::cout << "[Usage]: testdetect [image_dir1] [image_dir2] [image_dir3] ..." << std::endl;
+        cerr << "Error: Usage testdetect [image_path1] [image_path2] ..." << endl;
         return -1;
     }
-
+    
     for (int i = 1; i < argc; ++i) {
         cv::Mat board = cv::imread(argv[i]);
         cv::Mat image = cv::imread(argv[i], cv::IMREAD_GRAYSCALE);
         
         if (board.empty() || image.empty()) {
-            std::cerr << "Error: Could not read image " << argv[i] << std::endl;
+            cerr << "Error: Could not read image " << argv[i] << endl;
             continue;
         }
-        
-        cv::imshow("Original Image", image);
-        
+
         vector<shared_ptr<Ellipse>> ells;
         int row = image.rows;
         int col = image.cols;
         double width = 2.0;
-        
+
         FuncTimerDecorator<int>("detectEllipse")(detectEllipse, image.data, row, col, ells, NONE_POL, width);
-        
-        cout << "Found " << ells.size() << " ellipse(s) in " << argv[i] << endl;
-        
+
+        string filename = string(argv[i]).substr(string(argv[i]).find_last_of("/") + 1);
+        string output_path = "/app/results/" + filename + "_detected.png";
+        string result_txt_path = "/app/results/" + filename + "_result.txt";
+
+        ofstream result_file(result_txt_path);
+        if (!result_file.is_open()) {
+            cerr << "Error: Could not write to " << result_txt_path << endl;
+            continue;
+        }
+
+        result_file << "filename: " << filename << endl;
+        result_file << "ellipse_count: " << ells.size() << endl;
+
         for (size_t j = 0; j < ells.size(); ++j) {
             auto ell = ells[j];
-            
-            cout << "Ellipse " << j + 1 << ":\n";
-            cout << "  Center: (" << ell->o.x << ", " << ell->o.y << ")\n";
-            cout << "  Axes: (" << ell->a << " x " << ell->b << ")\n";
-            cout << "  Rotation Angle: " << rad2angle(PI_2 - ell->phi) << " degrees\n";
-            cout << "  Goodness: " << ell->goodness << "\n";
-            cout << "  Polarity: " << ell->polarity << "\n";
-            cout << "  Coverage Angle: " << ell->coverangle << " degrees\n";
+            result_file << "Ellipse " << j + 1 << ":" << endl;
+            result_file << "  Center: (" << ell->o.x << ", " << ell->o.y << ")" << endl;
+            result_file << "  Axes: (" << ell->a << " x " << ell->b << ")" << endl;
+            result_file << "  Rotation Angle: " << rad2angle(PI_2 - ell->phi) << " degrees" << endl;
+            result_file << "  Goodness: " << ell->goodness << endl;
+            result_file << "  Polarity: " << ell->polarity << endl;
+            result_file << "  Coverage Angle: " << ell->coverangle << " degrees" << endl;
 
             cv::ellipse(board,
                         cv::Point(ell->o.y, ell->o.x),
@@ -59,11 +68,10 @@ int main(int argc, char* argv[]) {
                         0);
         }
 
-        std::string filename = std::string(argv[i]).substr(std::string(argv[i]).find_last_of("/") + 1);
-        std::string output_path = "/app/results/" + filename + "_detected.png";
         cv::imwrite(output_path, board);
-        std::cout << "Saved output image: " << output_path << std::endl;
-
+        result_file << "output_image_path: " << output_path << endl;
+        result_file.close();
     }
+
     return 0;
 }

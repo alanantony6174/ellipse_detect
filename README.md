@@ -50,7 +50,7 @@ If you want to run the command-line binary directly (for example, for testing wi
 docker run --rm -it \
     -e DISPLAY=$DISPLAY \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
-    -v /home/alan/Desktop/standard-ellipse-detection/images:/opt/test_images \
+    -v /home/user/Desktop/standard-ellipse-detection/images:/opt/test_images \
     ellipse-detection
 ```
 
@@ -61,7 +61,7 @@ cd /app/standard-ellipse-detection/build
 ./bin/testdetect /opt/test_images/test3.jpg
 ```
 
-Replace `/home/alan/Desktop/standard-ellipse-detection/images` with your actual path containing test images.
+Replace `/home/user/Desktop/standard-ellipse-detection/images` with your actual path containing test images.
 
 ## Using the FastAPI `/detect` Endpoint
 
@@ -71,13 +71,23 @@ The FastAPI server (launched automatically when the container starts) provides a
    Send a `multipart/form-data` POST request with the image file.
 
 2. **Processing:**  
-   The server saves the uploaded file, runs the `testdetect` binary on it, and checks for the output image (named `<original_filename>_detected.png`).
+   The server saves the uploaded file, runs the `testdetect` binary on it, and checks for the output text file (named `<original_filename>_result.txt`) and image (named `<original_filename>_detected.png`).
 
 3. **Response:**  
-   The endpoint returns a JSON object with:
-   - `output`: The standard output from the ellipse detection binary.
-   - `errors`: Any error messages from the detection process.
-   - `image_base64`: The processed image encoded in base64.
+   Upon success, the endpoint returns a JSON object containing:
+   - `filename`: The name of the processed file.
+   - `ellipse_count`: The total number of ellipses detected.
+   - `ellipses`: A list of ellipse objects, where each ellipse contains:
+     - `center`: Center coordinates of the ellipse.
+     - `axes`: Lengths of the short and long axes.
+     - `rotation_angle`: The rotation angle of the ellipse.
+     - `goodness`: A score representing the detection quality.
+     - `polarity`: The polarity of the ellipse.
+     - `coverage_angle`: The coverage angle of the ellipse.
+   - `output_image_path`: The file path of the processed image.
+   - `image_base64`: The processed image encoded as a base64 string.
+
+   In case of an error (e.g., if the output text file isn’t found), the response will include an error message along with the binary’s standard output and error.
 
 Example using `curl`:
 
