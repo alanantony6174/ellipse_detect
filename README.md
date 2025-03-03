@@ -2,21 +2,6 @@
 
 This repository provides a Dockerized environment for building and running the Standard Ellipse Detection algorithm. The setup builds OpenCV 3.4.7 and LAPACK 3.9.1 from source, compiles the ellipse detection binary along with its tests, and packages everything into a multi-stage Docker image. A FastAPI server is also provided to allow image processing via an HTTP endpoint.
 
-## Overview
-
-The Docker image consists of two stages:
-
-- **Builder Stage (Ubuntu 20.04):**
-  - Installs build dependencies including Git, CMake, compilers, and libraries.
-  - Builds OpenCV 3.4.7 from source.
-  - Builds LAPACK 3.9.1 and installs LAPACKE header files.
-  - Compiles the Standard Ellipse Detection project and its tests (producing `bin/testdetect`).
-
-- **Final Runtime Stage (Python 3.8-slim):**
-  - Installs only the necessary runtime libraries (e.g., GTK, libgfortran).
-  - Sets up required Python packages (FastAPI, Uvicorn, etc.).
-  - Copies the compiled binaries and libraries from the builder stage.
-  - Provides a FastAPI server (defined in `main.py`) exposing a `/detect` endpoint for processing images.
 
 ## Prerequisites
 
@@ -101,23 +86,6 @@ curl -X POST "http://localhost:8000/detect" \
   -F "file=@/path/to/your/image.jpg"
 ```
 
-## Dockerfile Breakdown
-
-- **Stage 1 (Builder):**
-  - Based on `ubuntu:20.04` with noninteractive APT.
-  - Installs build tools and libraries.
-  - Downloads, builds, and installs OpenCV 3.4.7.
-  - Downloads, builds, and installs LAPACK 3.9.1.
-  - Copies the local Standard Ellipse Detection project, builds the project, and creates tests.
-
-- **Stage 2 (Runtime):**
-  - Uses `python:3.8-slim` as the base.
-  - Installs runtime dependencies like GTK and libgfortran.
-  - Installs necessary Python packages.
-  - Copies over built libraries and binaries from the builder stage.
-  - Sets up required directories for uploads and results.
-  - Launches the FastAPI server using Uvicorn.
-
 ## Notes
 
 - If you see the message `Failed to load module "canberra-gtk-module"`, it can be safely ignored.
@@ -131,4 +99,8 @@ Alan and contributors.
 
 ---
 
-This updated README now reflects all the build, run, and usage instructions as described in your Dockerfile and server setup.
+## Credits
+
+This project is inspired by and builds upon the work from [memory-overflow/standard-ellipse-detection](https://github.com/memory-overflow/standard-ellipse-detection), a high-quality ellipse detector based on arc-support line segments.
+
+---
