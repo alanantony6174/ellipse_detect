@@ -59,8 +59,11 @@ int main(int argc, char* argv[]) {
                         0);
         }
 
-        cv::imshow("Detected Result", board);
-        cv::waitKey(0);
+        std::string filename = std::string(argv[i]).substr(std::string(argv[i]).find_last_of("/") + 1);
+        std::string output_path = "/app/results/" + filename + "_detected.png";
+        cv::imwrite(output_path, board);
+        std::cout << "Saved output image: " << output_path << std::endl;
+
     }
     return 0;
 }
